@@ -77,6 +77,7 @@ __device__ void priv_scan_stride_N(const int laneId, const int warpId, T* shrdMe
 			for (int i = 1; i <= 32; i *= 2) {
 				/*the first row of the matrix*/
 				val = __shfl_up(elem[s], i);
+				T va = val;
 				if (laneId >= i) {
 					elem[s] = op(elem[s], val);
 				}
@@ -108,8 +109,8 @@ __device__ void priv_scan_stride_N(const int laneId, const int warpId, T* shrdMe
 		}
 		__syncthreads();
 
-
 		/*update each element in the thread block*/
+		val = 0;
 		if (warpId > 0) {
 			val = shrdMem[warpId - 1];
 		}
