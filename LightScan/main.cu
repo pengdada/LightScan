@@ -61,7 +61,7 @@ bool parallel_scan(Options& opt) {
 	cout << "Initialize test data [1, 1, 1...] of " << numElements
 			<< " elements" << endl;
 	for (int i = 0; i < numElements; i++) {
-		hostData[i] = random() & 1;
+		hostData[i] = random() & 0xFF;
 	}
 	/*kernel configuration*/
 	const int numElementsPerThread =
