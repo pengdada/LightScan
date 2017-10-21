@@ -68,7 +68,7 @@ bool parallel_scan(Options& opt) {
 			opt._numElemsPerThread > 0 ?
 					opt._numElemsPerThread :
 					Scan::get_num_elements_per_thread<T>();
-	const int numThreadsPerBlock = deviceProp.maxThreadsPerBlock; /*use the maximum number of threads per block*/
+	const int numThreadsPerBlock = deviceProp.maxThreadsPerBlock/4; /*use the maximum number of threads per block*/
 	const int numElementsPerBlock = numThreadsPerBlock * numElementsPerThread; /*number of elements per thread block*/
 	const int numElementsAligned = (numElements + numElementsPerBlock - 1)
 			/ numElementsPerBlock * numElementsPerBlock;

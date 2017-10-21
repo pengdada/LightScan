@@ -13,13 +13,140 @@
 #include "Utils.cuh"
 #pragma once
 
-namespace Scan {
+namespace Scan
+{
+
+//template<bool IsSharedMemory>
+//struct WarpPrefixSum {
+//	template<typename T>
+//	static inline __device__ void Run(const int laneId, T& val, T* elem, int size) {
+//		if (IsSharedMemory) {
+//			T warp = elem[laneId];
+//#pragma unroll
+//			for (int i = 1; i <= 32; i *= 2) {
+//				/*the first row of the matrix*/
+//				val = __shfl_up(warp, i);
+//				if (laneId >= i) {
+//					warp = op(warp, val);
+//				}
+//			}
+//			elem[laneId] = warp;
+//		}
+//		else {
+//#pragma unroll
+//			for (int i = 1; i <= 32; i *= 2) {
+//				/*the first row of the matrix*/
+//				val = __shfl_up(elem[i], i);
+//				if (laneId >= i) {
+//					elem[i] = op(elem[i], val);
+//				}
+//			}
+//		}
+//	}
+//};
+//
+
+
+
+template<typename T, typename Sum, typename Comm, int ELEMENTS_PER_THREAD> inline
+__device__ void priv_scan_stride_N(const int laneId, const int warpId, T* shrdMem,
+	const T* __restrict dataIn, T* dataOut, Comm * partialSums,
+	const unsigned int numBlocks) {
+	int idx, gbid, base;
+	T val, elem[ELEMENTS_PER_THREAD];
+	Sum op;
+
+	/*cyclic distribution of thread blocks*/
+	for (gbid = blockIdx.x; gbid < numBlocks; gbid += gridDim.x) {
+
+		/*get the base address*/
+		base = ELEMENTS_PER_THREAD * (gbid * blockDim.x + warpId * 32);
+
+		/*load 8 elements per thread*/
+		idx = base + laneId;
+
+#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			elem[i] = dataIn[idx];
+			idx += 32;
+		}
+
+#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+#pragma unroll
+			for (int i = 1; i <= 32; i *= 2) {
+				/*the first row of the matrix*/
+				val = __shfl_up(elem[i], i);
+				if (laneId >= i) {
+					elem[i] = op(elem[i], val);
+				}
+			}
+		}
+		/*perform intra-warp inclusive scan by broadcasting the last column of the matrix to each individual thread*/
+#pragma unroll
+		for (int i = 1; i < ELEMENTS_PER_THREAD; i++) {
+			elem[i] = op(elem[i], __shfl(elem[i - 1], 31));
+		}
+
+		/*save its sum to shared memory for each warp in the thread block*/
+		if (laneId == 31) {
+			shrdMem[warpId] = elem[ELEMENTS_PER_THREAD-1];
+		}
+		__syncthreads();
+		if (warpId == 0) {
+			/*the share memory size is always equal to 32 * sizeof(T)*/
+			T warp = shrdMem[laneId];
+#pragma unroll
+			for (int i = 1; i <= 32; i *= 2) {
+				val = __shfl_up(warp, i);
+				if (laneId >= i) {
+					warp += val;
+				}
+			}
+			/*save the prefix sums to shared memory*/
+			shrdMem[laneId] = warp;
+		}
+		__syncthreads();
+
+
+		/*update each element in the thread block*/
+		val = 0;
+		if (warpId > 0) {
+			val = shrdMem[warpId - 1];
+		}
+#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			elem[i] = op(elem[i], val);
+		}
+
+		/*get the lead sum for the current thread block*/
+		val = utils::busy_wait_comm<T, Comm>(partialSums, gbid, elem[ELEMENTS_PER_THREAD-1]);
+
+#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			elem[i] = op(elem[i], val);
+		}
+
+		/*write the results to the output*/
+		idx = base + laneId;
+#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			dataOut[idx] = elem[i];
+			idx += 32;
+		}
+	}
+}
+
+
 
 /*each thread stores 4 elements*/
-template<typename T, typename Sum, typename Comm, int ELEMENTS_PER_THREAD>
+template<typename T, typename Sum, typename Comm, int ELEMENTS_PER_THREAD> inline
 __device__ void priv_scan_stride_4(const int laneId, const int warpId, T* shrdMem,
-		const T* __restrict dataIn, T* dataOut, Comm * partialSums,
-		const unsigned int numBlocks) {
+		const T* __restrict dataIn, T* dataOut, Comm * partialSums, const unsigned int numBlocks)
+{
+#if 0
+	return priv_scan_stride_N<T, Sum, Comm, ELEMENTS_PER_THREAD>(laneId, warpId, shrdMem, dataIn, dataOut, partialSums, numBlocks);
+#else
 	int idx, gbid, base;
 	T val, elem, elem2, elem3, elem4;
 	Sum op;
@@ -130,6 +257,7 @@ __device__ void priv_scan_stride_4(const int laneId, const int warpId, T* shrdMe
 		idx += 32;
 		dataOut[idx] = elem4;
 	}
+#endif
 }
 
 /*each thread stores 8 elements*/
