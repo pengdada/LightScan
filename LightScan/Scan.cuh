@@ -66,26 +66,26 @@ __device__ void priv_scan_stride_N(const int laneId, const int warpId, T* shrdMe
 		idx = base + laneId;
 
 #pragma unroll
-		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-			elem[i] = dataIn[idx];
+		for (int s = 0; s < ELEMENTS_PER_THREAD; s++) {
+			elem[s] = dataIn[idx];
 			idx += 32;
 		}
 
 #pragma unroll
-		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+		for (int s = 0; s < ELEMENTS_PER_THREAD; s++) {
 #pragma unroll
 			for (int i = 1; i <= 32; i *= 2) {
 				/*the first row of the matrix*/
-				val = __shfl_up(elem[i], i);
+				val = __shfl_up(elem[s], i);
 				if (laneId >= i) {
-					elem[i] = op(elem[i], val);
+					elem[s] = op(elem[s], val);
 				}
 			}
 		}
 		/*perform intra-warp inclusive scan by broadcasting the last column of the matrix to each individual thread*/
 #pragma unroll
-		for (int i = 1; i < ELEMENTS_PER_THREAD; i++) {
-			elem[i] = op(elem[i], __shfl(elem[i - 1], 31));
+		for (int s = 1; s < ELEMENTS_PER_THREAD; s++) {
+			elem[s] = op(elem[s], __shfl(elem[s - 1], 31));
 		}
 
 		/*save its sum to shared memory for each warp in the thread block*/
@@ -110,28 +110,27 @@ __device__ void priv_scan_stride_N(const int laneId, const int warpId, T* shrdMe
 
 
 		/*update each element in the thread block*/
-		val = 0;
 		if (warpId > 0) {
 			val = shrdMem[warpId - 1];
 		}
 #pragma unroll
-		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-			elem[i] = op(elem[i], val);
+		for (int s = 0; s < ELEMENTS_PER_THREAD; s++) {
+			elem[s] = op(elem[s], val);
 		}
 
 		/*get the lead sum for the current thread block*/
 		val = utils::busy_wait_comm<T, Comm>(partialSums, gbid, elem[ELEMENTS_PER_THREAD-1]);
 
 #pragma unroll
-		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-			elem[i] = op(elem[i], val);
+		for (int s = 0; s < ELEMENTS_PER_THREAD; s++) {
+			elem[s] = op(elem[s], val);
 		}
 
 		/*write the results to the output*/
 		idx = base + laneId;
 #pragma unroll
-		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-			dataOut[idx] = elem[i];
+		for (int s = 0; s < ELEMENTS_PER_THREAD; s++) {
+			dataOut[idx] = elem[s];
 			idx += 32;
 		}
 	}
@@ -144,7 +143,7 @@ template<typename T, typename Sum, typename Comm, int ELEMENTS_PER_THREAD> inlin
 __device__ void priv_scan_stride_4(const int laneId, const int warpId, T* shrdMem,
 		const T* __restrict dataIn, T* dataOut, Comm * partialSums, const unsigned int numBlocks)
 {
-#if 0
+#if 1
 	return priv_scan_stride_N<T, Sum, Comm, ELEMENTS_PER_THREAD>(laneId, warpId, shrdMem, dataIn, dataOut, partialSums, numBlocks);
 #else
 	int idx, gbid, base;
