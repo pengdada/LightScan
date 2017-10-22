@@ -5018,6 +5018,16 @@ __device__ void priv_scan_stride_48(const int laneId, const int warpId, T* shrdM
 	}
 }
 
+template<typename T, typename Sum, typename Comm, int ELEMENTS_PER_THREAD>
+__global__ void priv_scan_kernel_N(const T* __restrict dataIn, T* dataOut,
+	const int numBlocks, Comm* partialSums) {
+	__shared__ T shrdMem[32];
+	const int warpId = threadIdx.x / 32;
+	const int laneId = threadIdx.x % 32;
+	priv_scan_stride_N<T, Sum, Comm, ELEMENTS_PER_THREAD>(laneId, warpId, shrdMem, dataIn, dataOut,
+		partialSums, numBlocks);
+}
+
 template<typename T, typename Sum, typename Comm>
 __global__ void priv_scan_kernel_4(const T* __restrict dataIn, T* dataOut,
 		const int numBlocks, Comm* partialSums) {
@@ -5140,55 +5150,47 @@ void scan(const int gridSize, const int blockSize, const int numShrdMemElements,
 
 	/*initialize the flag*/
 	cudaMemset(partialSums, 0, numBlocks * sizeof(Comm));
-
+#if 1
+	priv_scan_kernel_N<T, Sum, Comm, ELEMENTS_PER_THREAD> << <gridSize, blockSize >> >(dataIn, dataOut, numBlocks, partialSums);
+#else
 	/*invoke the kernel*/
 	switch (ELEMENTS_PER_THREAD) {
 	case 4:
-		priv_scan_kernel_4<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		//priv_scan_kernel_4<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
+		priv_scan_kernel_N<T, Sum, Comm, ELEMENTS_PER_THREAD> << <gridSize, blockSize >> >(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 8:
-		priv_scan_kernel_8<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_8<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 16:
-		priv_scan_kernel_16<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_16<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 20:
-		priv_scan_kernel_20<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_20<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 24:
-		priv_scan_kernel_24<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_24<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 28:
-		priv_scan_kernel_28<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_28<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 32:
-		priv_scan_kernel_32<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_32<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 36:
-		priv_scan_kernel_36<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_36<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 40:
-		priv_scan_kernel_40<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_40<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 44:
-		priv_scan_kernel_44<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_44<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	case 48:
-		priv_scan_kernel_48<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut,
-				numBlocks, partialSums);
+		priv_scan_kernel_48<T, Sum, Comm> <<<gridSize, blockSize>>>(dataIn, dataOut, numBlocks, partialSums);
 		break;
 	}
-
+#endif
 	/*synchronize the kernel*/
 	cudaDeviceSynchronize();
 }

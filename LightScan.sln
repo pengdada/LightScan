@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LightScan", "LightScan\LightScan.vcxproj", "{BF9C9D2C-6ADF-4FCE-A244-EB7CE4B76D64}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "integralImage", "integralImage\integralImage.vcxproj", "{B050DFC9-FD62-42AF-A3AE-2954D1B1746C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{BF9C9D2C-6ADF-4FCE-A244-EB7CE4B76D64}.Debug|x64.Build.0 = Debug|x64
 		{BF9C9D2C-6ADF-4FCE-A244-EB7CE4B76D64}.Release|x64.ActiveCfg = Release|x64
 		{BF9C9D2C-6ADF-4FCE-A244-EB7CE4B76D64}.Release|x64.Build.0 = Release|x64
+		{B050DFC9-FD62-42AF-A3AE-2954D1B1746C}.Debug|x64.ActiveCfg = Debug|x64
+		{B050DFC9-FD62-42AF-A3AE-2954D1B1746C}.Debug|x64.Build.0 = Debug|x64
+		{B050DFC9-FD62-42AF-A3AE-2954D1B1746C}.Release|x64.ActiveCfg = Release|x64
+		{B050DFC9-FD62-42AF-A3AE-2954D1B1746C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
