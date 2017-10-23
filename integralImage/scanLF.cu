@@ -4,6 +4,18 @@
 #include "cudaLib.cuh"
 #include <stdio.h>
 
+__forceinline__ __device__ unsigned int getLaneid() {
+	unsigned int laneId;
+	asm volatile("mov.u32 %0, %laneid;" : "=r"(laneId));
+	return laneId;
+}
+
+__forceinline__ __device__ unsigned int getWarpid() {
+	return threadIdx.x >> 5;
+}
+
+
+
 template<typename T>
 __global__ void scanLF(const T *input, T*output, int n)
 {
@@ -20,9 +32,21 @@ __global__ void scanLF(const T *input, T*output, int n)
 	int tid = threadIdx.x + blockDim.x*blockIdx.x;
 	elem = input[tid];
 
-	for (int i = 1; i < 32; i <<= 1) {
-		a = __shfl_up(elem, i);
+	#pragma unroll
+	for (int i = 1; i <= 32; i <<= 1) {
+		#pragma unroll
+		for (int j = 1; j <= i; j++) {
+			a = __shfl_up(elem, j);
+			if ((laneId % (i<<1)) == (i-1+j)) {
+				elem += a;
+			}
+		}
 	}
+	__shared__ int sMem[1024];
+	sMem[tid] = elem;
+	__syncthreads();
+
+	a = elem;
 
 	//for (int i = 1; i <= 32; i <<= 1) {
 	//	/*the first row of the matrix*/
@@ -34,43 +58,39 @@ __global__ void scanLF(const T *input, T*output, int n)
 	//}
 
 
+	//__shared__ T temp[1024 * 2];
+	//int tdx = threadIdx.x; int offset = 1;
+	//temp[2 * tdx] = input[2 * tdx];
+	//temp[2 * tdx + 1] = input[2 * tdx + 1];
 
+	//for (int d = n >> 1; d > 0; d >>= 1)
+	//{
+	//	__syncthreads();
+	//	if (tdx < d)
+	//	{
+	//		int ai = offset*(2 * tdx + 1) - 1;
+	//		int bi = offset*(2 * tdx + 2) - 1;
+	//		temp[bi] += temp[ai];
+	//	}
+	//	offset *= 2;
+	//}
+	//if (tdx == 0) temp[n - 1] = 0;
+	//for (int d = 1; d < n; d *= 2)
+	//{
+	//	offset >>= 1; __syncthreads();
+	//	if (tdx < d)
+	//	{
+	//		int ai = offset*(2 * tdx + 1) - 1;
+	//		int bi = offset*(2 * tdx + 2) - 1;
+	//		float t = temp[ai];
+	//		temp[ai] = temp[bi];
+	//		temp[bi] += t;
+	//	}
+	//}
+	//__syncthreads();
 
-
-
-	__shared__ T temp[1024 * 2];
-	int tdx = threadIdx.x; int offset = 1;
-	temp[2 * tdx] = input[2 * tdx];
-	temp[2 * tdx + 1] = input[2 * tdx + 1];
-
-	for (int d = n >> 1; d > 0; d >>= 1)
-	{
-		__syncthreads();
-		if (tdx < d)
-		{
-			int ai = offset*(2 * tdx + 1) - 1;
-			int bi = offset*(2 * tdx + 2) - 1;
-			temp[bi] += temp[ai];
-		}
-		offset *= 2;
-	}
-	if (tdx == 0) temp[n - 1] = 0;
-	for (int d = 1; d < n; d *= 2)
-	{
-		offset >>= 1; __syncthreads();
-		if (tdx < d)
-		{
-			int ai = offset*(2 * tdx + 1) - 1;
-			int bi = offset*(2 * tdx + 2) - 1;
-			float t = temp[ai];
-			temp[ai] = temp[bi];
-			temp[bi] += t;
-		}
-	}
-	__syncthreads();
-
-	output[2 * tdx] = temp[2 * tdx];
-	output[2 * tdx + 1] = temp[2 * tdx + 1];
+	//output[2 * tdx] = temp[2 * tdx];
+	//output[2 * tdx + 1] = temp[2 * tdx + 1];
 
 }
 
@@ -79,7 +99,8 @@ int mainLF(int argc, char** argv) {
 	std::vector<int> vecIn(SIZE), vecOut(SIZE);
 
 	for (int i = 0; i < SIZE; i++) {
-		vecIn[i] = i + 1;
+		//vecIn[i] = i + 1;
+		vecIn[i] = 1;
 	}
 
 	DevData<int> devIn(SIZE), devOut(SIZE);
