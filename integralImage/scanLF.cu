@@ -16,37 +16,54 @@ __forceinline__ __device__ unsigned int getWarpid() {
 
 
 
-template<typename T>
-__global__ void scanLF(const T *input, T*output, int n)
+template<typename T, int TYPE>
+__global__ void Scan(const T *input, T*output, int n)
 {
-	auto x = blockDim;
-	auto y = gridDim;
+	//auto x = blockDim;
+	//auto y = gridDim;
 
-	unsigned int warpId, laneId;
-	asm volatile("mov.u32 %0, %laneid;" : "=r"(laneId));
-	warpId = threadIdx.x >> 5;
-	assert(laneId == threadIdx.x % 32);
+	unsigned int warpId = threadIdx.x >> 5;
+	unsigned int laneId = threadIdx.x % 32;
+	//asm volatile("mov.u32 %0, %laneid;" : "=r"(laneId));
+	//warpId = threadIdx.x >> 5;
+	//assert(laneId == threadIdx.x % 32);
 
 	T a, elem;
 
 	int tid = threadIdx.x + blockDim.x*blockIdx.x;
 	elem = input[tid];
 
-	#pragma unroll
-	for (int i = 1; i <= 32; i <<= 1) {
-		#pragma unroll
-		for (int j = 1; j <= i; j++) {
-			a = __shfl_up(elem, j);
-			if ((laneId % (i<<1)) == (i-1+j)) {
+	if (TYPE == 0) {
+#pragma unroll
+		for (int i = 1; i <= 32; i <<= 1) {
+#pragma unroll
+			for (int j = 1; j <= i; j++) {
+				a = __shfl_up(elem, j);
+				//if ((laneId % (i<<1)) == (i-1+j)) {
+				if ((laneId & ((i << 1) - 1)) == (i - 1 + j)) {
+					elem += a;
+				}
+			}
+		}
+	}
+	else if (TYPE == 1){
+#pragma unroll
+		for (int i = 1; i <= 32; i <<= 1) {
+			/*the first row of the matrix*/
+			a = __shfl_up(elem, i);
+			if (laneId >= i) {
 				elem += a;
 			}
 		}
 	}
-	__shared__ int sMem[1024];
-	sMem[tid] = elem;
-	__syncthreads();
 
-	a = elem;
+
+	output[tid] = elem;
+	//__shared__ int sMem[1024];
+	//sMem[tid] = elem;
+	//__syncthreads();
+
+	//a = elem;
 
 	//for (int i = 1; i <= 32; i <<= 1) {
 	//	/*the first row of the matrix*/
@@ -95,24 +112,25 @@ __global__ void scanLF(const T *input, T*output, int n)
 }
 
 int mainLF(int argc, char** argv) {
-	int SIZE = 2048;
+	int nType = atoi(argv[1]);
+	printf("nType == %d\n", nType);
+	int SIZE = 2048*1000;
 	std::vector<int> vecIn(SIZE), vecOut(SIZE);
 
 	for (int i = 0; i < SIZE; i++) {
 		//vecIn[i] = i + 1;
 		vecIn[i] = 1;
 	}
-
 	DevData<int> devIn(SIZE), devOut(SIZE);
 	devIn.CopyFromHost(&vecIn[0], vecIn.size(), vecIn.size(), 1);
 	devOut.Zero();
-	dim3 grids(1, 1, 1), blocks(SIZE / 2, 1, 1);
-	scanLF<< <grids, blocks >> > (devIn.GetData(), devOut.GetData(), SIZE);
+	dim3 grids(SIZE/1024, 1, 1), blocks(1024, 1, 1);
+	if (nType == 0)      Scan<int, 0> <<<grids, blocks >>>(devIn.GetData(), devOut.GetData(), SIZE);
+	else if (nType == 1) Scan<int, 1><<<grids, blocks>>>(devIn.GetData(), devOut.GetData(), SIZE);
 	devOut.CopyToHost(&vecOut[0], vecOut.size(), vecOut.size(), 1);
 	cudaDeviceSynchronize();
 
 	//devOut.CopyToHost(&vecOut[0], 1, 1, 1);
-
 
 	return 0;
 }
