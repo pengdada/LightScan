@@ -13,6 +13,9 @@
 #include <Windows.h>
 #include <assert.h>
 
+typedef unsigned int uint;
+typedef unsigned short ushort;
+
 #define __cudaCheckError(x)  if (cudaSuccess != (x)){          \
 	printf("file %s, line %d, function %s,\nCUDA ERROR:%s\n",  \
 	__FILE__, __LINE__, __FUNCTION__, cudaGetErrorString(x));  \
