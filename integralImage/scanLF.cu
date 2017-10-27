@@ -66,6 +66,8 @@ __global__ void Scan(const T *input, T*output, int n)
 			}
 		}
 	}
+	output[tid] = elem;
+
 	//if (TYPE == 2) {
 	//	//up-sweep
 	//	for (int i = 1; i <= 32; i ++) {
