@@ -2,11 +2,17 @@
 #include <iostream>
 #include "integralImage.h"
 
+
 int main(int argc, char** argv)
 {
+	//using namespace BlockScan;
 	extern int mainLF(int argc, char** argv);
 	//mainLF(argc, argv);
 
-	Test();
+	//Test();
+
+	extern void TestBlockScan();
+	TestBlockScan();
+
 	return 0;
 }

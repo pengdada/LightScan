@@ -14,8 +14,6 @@ __forceinline__ __device__ unsigned int getWarpid() {
 	return threadIdx.x >> 5;
 }
 
-
-
 template<typename T, int TYPE>
 __global__ void Scan(const T *input, T*output, int n)
 {
