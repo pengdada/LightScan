@@ -94,7 +94,7 @@ static void Test() {
 	{
 		float tm1 = GetAvgTime(&src[0], &dst1[0], width, height, 0);
 		float tm2 = GetAvgTime(&src[0], &dst2[0], width, height, 1);
-		printf("tm1 = %f, tm2 = %f\n", tm1, tm2);
+		printf(" IntegralImageSerial tm1 = %f \n IntegralImageParallel tm2 = %f\n", tm1, tm2);
 	}
 
 	if (memcmp(&dst1[0], &dst2[0], size*sizeof(dst2[0])) == 0) {
