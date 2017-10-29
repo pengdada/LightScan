@@ -1,3 +1,4 @@
+
 #include "cudaLib.cuh"
 #include <stdio.h>
 #include <vector>
@@ -7,8 +8,8 @@ namespace SerielScan {
 
 	static const int WARP_SIZE = 32;
 	static const int BLOCK_SIZE = WARP_SIZE;
-	template<typename T, uint SMEM_COUNT>
-	__global__ void serielScan(const T* dataIn, T* dataOut, int width, int widthStride, int height) {
+	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT>
+	__global__ void serielScan(const T* dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
 		__shared__ T smemSum[BLOCK_SIZE];
 		auto smem = _smem[0];
@@ -29,80 +30,80 @@ namespace SerielScan {
 			for (uint x = tidx, cnt = 0; x < width; x += blockDim.x, cnt++) {
 				uint offset = y*widthStride + x;
 				#pragma unroll
-				for (int s = 0; s < BLOCK_SIZE; s++) {
+				for (uint s = 0; s < BLOCK_SIZE; s++) {
 					if (y + s < height) {
 						data[s] = ldg(&dataIn[offset]);
 						offset += widthStride;
 					}
 				}
-				T sum = data[0];
-				#pragma unroll
-				for (int s = 1; s < BLOCK_SIZE; s++) {
-					sum += data[s];
-					data[s] = sum;
-				}
-				__syncthreads();
-
 				//rotate
 				for (int k = 0; k < warpCount; k += SMEM_COUNT) {
 					if (warpId >= k && warpId < k + SMEM_COUNT) {
 						auto csMem = _smem[warpId - k];
 						assert(warpId >= k);
 						#pragma unroll
-						for (int s = 0; s < BLOCK_SIZE; s++) {
+						for (uint s = 0; s < BLOCK_SIZE; s++) {
 							csMem[s][laneId] = data[s];
 						}
 						#pragma unroll
-						for (int s = 0; s < BLOCK_SIZE; s++) {
+						for (uint s = 0; s < BLOCK_SIZE; s++) {
 							data[s] = csMem[laneId][s];
 						}
 					}
 					__syncthreads();
 				}
-
-				#pragma unroll
-				for (int s = 1; s < BLOCK_SIZE; s++) {
-					data[s] += data[s - 1];
-				}
-				__syncthreads();
-				//rotate
-				for (int k = 0; k < warpCount; k += SMEM_COUNT) {
-					if (warpId >= k && warpId < k + SMEM_COUNT) {
-						auto csMem = _smem[warpId - k];
-						assert(warpId >= k);
-						#pragma unroll
-						for (int s = 0; s < BLOCK_SIZE; s++) {
-							csMem[s][laneId] = data[s];
-						}
-						#pragma unroll
-						for (int s = 0; s < BLOCK_SIZE; s++) {
-							data[s] = csMem[laneId][s];
-						}
-					}
-					__syncthreads();
-				}
-				if (laneId == WARP_SIZE - 1) {
+				{
+					T sum = data[0];
 					#pragma unroll
-					for (int s = 0; s < BLOCK_SIZE; s++) {
-						smem[warpId][s] = data[s];
+					for (uint s = 1; s < BLOCK_SIZE; s++) {
+						sum += data[s];
+						data[s] = sum;
 					}
 					__syncthreads();
 				}
+				smem[warpId][laneId] = data[BLOCK_SIZE-1];
+				__syncthreads();
+
 				if (warpId == 0) {
+					T sum = smem[0][laneId];
 					#pragma unroll
-					for (int s = 1; s < BLOCK_SIZE; s++) {
-						smem[laneId][s] += smem[laneId][s-1];
+					for (uint s = 1; s < BLOCK_SIZE; s++) {
+						sum += smem[s][laneId];
+						smem[s][laneId] = sum;
 					}
-					__syncthreads();
 				}
-
+				__syncthreads();
 				if (warpId > 0) {
+					T sum = smem[warpId - 1][laneId];
+					#pragma unroll
+					for (uint s = 0; s < BLOCK_SIZE; s++) {
+						data[s] += sum;
+					}
+				}
+				__syncthreads();
+
+				if (cnt > 0) {
 					#pragma unroll
 					for (int s = 0; s < BLOCK_SIZE; s++) {
-						data[s] = smem[warpId - 1][s];
+						data[s] += smemSum[laneId];
 					}
-					__syncthreads();
 				}
+				__syncthreads();
+
+				if (warpId == blockDim.x - 1) {
+					smemSum[laneId] = data[BLOCK_SIZE - 1];
+				}
+				__syncthreads();
+
+				uint _x = y & (~uint(31));
+				uint _y = x & (~uint(31));
+				offset = _y*heightStride + _x;
+				#pragma unroll
+				for (int s = 0; s < BLOCK_SIZE; s++) {
+					dataOut[offset + laneId] = data[s];
+					offset += heightStride;
+				}
+				__syncthreads();
 			}
 		}
 	}
@@ -117,8 +118,8 @@ void TestSerielScan() {
 	typedef uint DataType;
 
 	const uint BLOCK_SIZE = 32;
-	int width = 1024 * 1;
-	int height = 1024 * 2;
+	int width = 1024 * 2;
+	int height = 1024 * 1;
 	int size = width*height;
 	std::vector<DataType> vecA(size), vecB(size);
 	//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
@@ -136,8 +137,8 @@ void TestSerielScan() {
 	float tm = 0;
 	//tm = timeGetTime();
 	cudaEventRecord(start, 0);
-	//BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
-	//BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
+	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	//CUDA_CHECK_ERROR;
@@ -150,7 +151,7 @@ void TestSerielScan() {
 
 	devB.CopyToHost(&vecB[0], width, width, height);
 
-	FILE* fp = fopen("d:/int.raw", "wb");
+	FILE* fp = fopen("d:/ints.raw", "wb");
 	if (fp) {
 		fwrite(&vecB[0], sizeof(vecB[0]), width*height, fp);
 		fclose(fp);

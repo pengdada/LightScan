@@ -14,5 +14,8 @@ int main(int argc, char** argv)
 	extern void TestBlockScan();
 	TestBlockScan();
 
+	extern void TestSerielScan();
+	TestSerielScan();
+
 	return 0;
 }
