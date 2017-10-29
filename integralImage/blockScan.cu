@@ -139,13 +139,14 @@ void TestBlockScan() {
 	typedef uint DataType;
 
 	const uint BLOCK_SIZE = 32;
-	int width = 1024*2;
-	int height = 1024*1;
+	int width = 1024*1;
+	int height = 1024*2;
 	int size = width*height;
 	std::vector<DataType> vecA(size), vecB(size);
-	for (int i = 0; i < height-16; i += 32) {
-		std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
-	}
+	//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
+	
+	for (int i = 0; i < height; i ++) std::fill(vecA.begin(), vecA.end(), 1);
+	
 
 	DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
 	devA.CopyFromHost(&vecA[0], width, width, height);
