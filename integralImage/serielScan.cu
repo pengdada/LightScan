@@ -11,7 +11,7 @@ namespace SerielScan {
 	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT>
 	__global__ void serielScan(const T* dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
-		__shared__ T smemSum[WARP_SIZE];
+		__shared__ T smemSum[BLOCK_SIZE];
 		auto smem = _smem[0];
 
 		uint tidx = blockIdx.x * blockDim.x + threadIdx.x;

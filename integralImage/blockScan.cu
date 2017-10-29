@@ -149,7 +149,6 @@ void TestBlockScan() {
 	
 	std::fill(vecA.begin(), vecA.end(), 1);
 	
-
 	DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
 	devA.CopyFromHost(&vecA[0], width, width, height);
 
