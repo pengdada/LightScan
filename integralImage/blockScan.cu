@@ -159,8 +159,8 @@ void TestBlockScan() {
 	cudaEventRecord(start, 0);
 	BlockScan::blockScan<uint, BLOCK_SIZE, 8*sizeof(DataType)/sizeof(uint)> << <grid_size1, block_size, 0, SM.stream>> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
 	BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size,0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
-	cudaEventRecord(stop, 0);	
 	cudaDeviceSynchronize();
+	cudaEventRecord(stop, 0);	
 	//CUDA_CHECK_ERROR;
 
 
