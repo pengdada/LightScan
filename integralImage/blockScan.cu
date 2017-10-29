@@ -17,7 +17,7 @@ namespace BlockScan {
 
 	static const uint WARP_SIZE = 32;
 	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT>
-	__global__ void blockScan(const T* dataIn, T* dataOut, T* dataWorking, uint width, uint widthStride, uint height, uint heightStride) {
+	__global__ void blockScan(const T* __restrict__ dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
 		uint tidy = blockIdx.y * blockDim.y + threadIdx.y;
 		uint warpId = threadIdx.x >> 5;
@@ -40,7 +40,8 @@ namespace BlockScan {
 				#pragma unroll
 				for (int s = 0; s < BLOCK_SIZE; s++) {
 					if (y + s < height) {
-						data[s] = dataIn[offset];
+						data[s] = ldg(&dataIn[offset]);
+						//data[s] = dataIn[offset];
 						offset += widthStride;
 						WarpPrefixSumLF(val, laneId, data[s]);
 						if (laneId == WARP_SIZE - 1) smem[s][warpId] = data[s];
@@ -113,8 +114,8 @@ namespace BlockScan {
 					}
 					__syncthreads();
 				}
-				uint _x = y >> 5 << 5;
-				uint _y = x >> 5 << 5;
+				uint _x = y & (~uint(31));
+				uint _y = x & (~uint(31));
 				offset = _y*heightStride + _x;
 #pragma unroll
 				for (int s = 0; s < BLOCK_SIZE; s++) {
@@ -149,13 +150,15 @@ void TestBlockScan() {
 	DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
 	devA.CopyFromHost(&vecA[0], width, width, height);
 
-
+	DevStream SM;
 	dim3 block_size(256*4, 1);
-	dim3 grid_size(1, UpDivide(height, BLOCK_SIZE));
+	dim3 grid_size1(1, UpDivide(height, BLOCK_SIZE));
+	dim3 grid_size2(1, UpDivide(width, BLOCK_SIZE));
 	float tm = 0;
 	//tm = timeGetTime();
 	cudaEventRecord(start, 0);
-	BlockScan::blockScan<uint, BLOCK_SIZE, 8*sizeof(DataType)/sizeof(uint)> << <grid_size, block_size >> > (devA.GetData(), devB.GetData(), devTmp.GetData(), width, width, height, height);
+	BlockScan::blockScan<uint, BLOCK_SIZE, 8*sizeof(DataType)/sizeof(uint)> << <grid_size1, block_size, 0, SM.stream>> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+	BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size,0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
 	cudaEventRecord(stop, 0);	
 	cudaDeviceSynchronize();
 	//CUDA_CHECK_ERROR;

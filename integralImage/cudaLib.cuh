@@ -34,6 +34,15 @@ T* ConstToGeneral(const T* ptr){ T* _ptr; memcpy(&_ptr, &ptr, sizeof(_ptr)); ret
 __device__ __host__ __forceinline__ unsigned int UpDivide(unsigned int x, unsigned int y){ assert(y!=0); return (x+y-1)/y; }
 __device__ __host__ __forceinline__ unsigned int UpRound(unsigned int x, unsigned int y) { return UpDivide(x, y)*y;}
 
+template<typename T>
+__device__ __forceinline__ T ldg(const T* ptr) {
+#if __CUDA_ARCH__ >= 350
+    return __ldg(ptr);
+#else
+    return *ptr;
+#endif
+}
+
 struct DevStream{
 	DevStream():stream(cudaStreamDefault){
 	}
