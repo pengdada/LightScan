@@ -4,6 +4,15 @@
 #include "cudaLib.cuh"
 #include <stdio.h>
 
+template<typename T>
+__device__ __forceinline__ T ldg(const T* ptr) {
+#if __CUDA_ARCH__ >= 350
+    return __ldg(ptr);
+#else
+    return *ptr;
+#endif
+}
+
 __forceinline__ __device__ unsigned int getLaneid() {
 	unsigned int laneId;
 	asm volatile("mov.u32 %0, %laneid;" : "=r"(laneId));
