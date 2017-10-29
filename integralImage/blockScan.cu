@@ -138,12 +138,12 @@ void TestBlockScan() {
 	typedef uint DataType;
 
 	const uint BLOCK_SIZE = 32;
-	int width = 1024*1;
+	int width = 1024*2;
 	int height = 1024*1;
 	int size = width*height;
 	std::vector<DataType> vecA(size), vecB(size);
-	for (int i = 0; i < height-16; i += 16) {
-		std::fill(vecA.begin()+i*width, vecA.begin() + (i+8)*width, 1);
+	for (int i = 0; i < height-16; i += 32) {
+		std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
 	}
 
 	DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
@@ -152,15 +152,16 @@ void TestBlockScan() {
 
 	dim3 block_size(256*4, 1);
 	dim3 grid_size(1, UpDivide(height, BLOCK_SIZE));
-
-	float tm = timeGetTime();
+	float tm = 0;
+	//tm = timeGetTime();
 	cudaEventRecord(start, 0);
 	BlockScan::blockScan<uint, BLOCK_SIZE, 8*sizeof(DataType)/sizeof(uint)> << <grid_size, block_size >> > (devA.GetData(), devB.GetData(), devTmp.GetData(), width, width, height, height);
+	cudaEventRecord(stop, 0);	
 	cudaDeviceSynchronize();
-	CUDA_CHECK_ERROR;
+	//CUDA_CHECK_ERROR;
 
-	cudaEventRecord(stop, 0);
-	tm = timeGetTime() - tm;
+
+	//tm = timeGetTime() - tm;
 
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&inc, start, stop);
