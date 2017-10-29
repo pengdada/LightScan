@@ -8,7 +8,7 @@ namespace SerielScan {
 
 	static const int WARP_SIZE = 32;
 	static const int BLOCK_SIZE = WARP_SIZE;
-	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT>
+	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT, uint BLOCK_DIM_X>
 	__global__ void serielScan(const T* dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
 		__shared__ T smemSum[BLOCK_SIZE];
@@ -18,7 +18,7 @@ namespace SerielScan {
 		uint tidy = blockIdx.y * blockDim.y + threadIdx.y;
 		uint warpId = threadIdx.x >> 5;
 		uint laneId = threadIdx.x & 31;
-		uint warpCount = blockDim.x >> 5;
+		uint warpCount = BLOCK_DIM_X >> 5;
 
 		T data[BLOCK_SIZE];
 
@@ -37,6 +37,7 @@ namespace SerielScan {
 					}
 				}
 				//rotate
+				#pragma unroll
 				for (int k = 0; k < warpCount; k += SMEM_COUNT) {
 					if (warpId >= k && warpId < k + SMEM_COUNT) {
 						auto csMem = _smem[warpId - k];
@@ -81,7 +82,6 @@ namespace SerielScan {
 					}
 				}
 				__syncthreads();
-
 				if (cnt > 0) {
 					T sum = smemSum[laneId];
 					#pragma unroll
@@ -120,6 +120,7 @@ void TestSerielScan() {
 	typedef uint DataType;
 
 	const uint BLOCK_SIZE = 32;
+	const uint BLOCK_DIM_X = 256 * 4;
 	int width = 1024 * 2;
 	int height = 1024 * 1;
 	int size = width*height;
@@ -133,14 +134,14 @@ void TestSerielScan() {
 	devA.CopyFromHost(&vecA[0], width, width, height);
 
 	DevStream SM;
-	dim3 block_size(256 * 4, 1);
+	dim3 block_size(BLOCK_DIM_X, 1);
 	dim3 grid_size1(1, UpDivide(height, BLOCK_SIZE));
 	dim3 grid_size2(1, UpDivide(width, BLOCK_SIZE));
 	float tm = 0;
 	//tm = timeGetTime();
 	cudaEventRecord(start, 0);
-	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
-	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
+	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint), BLOCK_DIM_X> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint), BLOCK_DIM_X> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	//CUDA_CHECK_ERROR;
