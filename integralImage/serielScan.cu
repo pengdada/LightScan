@@ -11,7 +11,7 @@ namespace SerielScan {
 	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT>
 	__global__ void serielScan(const T* dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
-		__shared__ T smemSum[BLOCK_SIZE];
+		__shared__ T smemSum[WARP_SIZE];
 		auto smem = _smem[0];
 
 		uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -83,14 +83,15 @@ namespace SerielScan {
 				__syncthreads();
 
 				if (cnt > 0) {
+					T sum = smemSum[laneId];
 					#pragma unroll
 					for (int s = 0; s < BLOCK_SIZE; s++) {
-						data[s] += smemSum[laneId];
+						data[s] += sum;
 					}
 				}
 				__syncthreads();
 
-				if (warpId == blockDim.x - 1) {
+				if (warpId == WARP_SIZE - 1) {
 					smemSum[laneId] = data[BLOCK_SIZE - 1];
 				}
 				__syncthreads();
@@ -119,7 +120,7 @@ void TestSerielScan() {
 
 	const uint BLOCK_SIZE = 32;
 	int width = 1024 * 2;
-	int height = 1024 * 1;
+	int height = 1024 * 2;
 	int size = width*height;
 	std::vector<DataType> vecA(size), vecB(size);
 	//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);

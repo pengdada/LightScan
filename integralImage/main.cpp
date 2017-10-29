@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 	//Test();
 
 	extern void TestBlockScan();
-	TestBlockScan();
+	//TestBlockScan();
 
 	extern void TestSerielScan();
 	TestSerielScan();
