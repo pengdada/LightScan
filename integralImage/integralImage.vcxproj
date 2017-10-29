@@ -91,6 +91,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="blockScan.cu" />
     <CudaCompile Include="scanBrentKung.cu" />
     <CudaCompile Include="scanLF.cu" />
+    <CudaCompile Include="serielScan.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
