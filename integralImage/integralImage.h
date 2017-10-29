@@ -87,7 +87,7 @@ float GetAvgTime(const T* src, T* dst, int width, int height, int type) {
 
 static void Test() {
 	int width = 1024*1;
-	int height = 1024*1;
+	int height = 1024*2;
 	int size = width*height;
 	std::vector<int> src(size), dst1(size), dst2(size);
 	std::fill(src.begin(), src.end(), 1);
