@@ -9,7 +9,7 @@ namespace SerielScan {
 	static const int WARP_SIZE = 32;
 	static const int BLOCK_SIZE = WARP_SIZE;
 	template<typename T, uint BLOCK_SIZE, uint SMEM_COUNT, uint BLOCK_DIM_X>
-	__global__ void serielScan(const T* dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
+	__global__ void serielScan(const T* __restrict dataIn, T* dataOut, uint width, uint widthStride, uint height, uint heightStride) {
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
 		__shared__ T smemSum[BLOCK_SIZE];
 		auto smem = _smem[0];
