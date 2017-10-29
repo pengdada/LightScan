@@ -111,6 +111,7 @@ namespace SerielScan {
 };
 
 void TestSerielScan() {
+	std::cout << "begin : TestSerielScan" << std::endl;
 	float inc = 0;
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -159,5 +160,6 @@ void TestSerielScan() {
 	}
 	printf("%d, %d, total time = %f, %f\n", width, height, tm, inc);
 	//cudaSyncDevice();
+	std::cout << "end : TestSerielScan" << std::endl;
 }
 

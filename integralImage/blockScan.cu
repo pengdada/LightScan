@@ -132,6 +132,7 @@ namespace BlockScan {
 };
 
 void TestBlockScan() {
+	std::cout << "begin : TestBlockScan" << std::endl;
 	float inc = 0;
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -180,4 +181,5 @@ void TestBlockScan() {
 	}
 	printf("%d, %d, total time = %f, %f\n", width, height, tm, inc);
 	//cudaSyncDevice();
+	std::cout << "end : TestBlockScan" << std::endl;
 }
