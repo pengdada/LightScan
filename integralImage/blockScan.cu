@@ -25,7 +25,7 @@ namespace BlockScan {
 		uint laneId = threadIdx.x & 31;
 		uint warpCount = blockDim.x >> 5;
 
-		uint data[BLOCK_SIZE], val;
+		T data[BLOCK_SIZE], val;
 		__shared__ T _smem[SMEM_COUNT][BLOCK_SIZE][WARP_SIZE + 1];
 		__shared__ T smemSum[BLOCK_SIZE];
 
@@ -136,7 +136,7 @@ namespace BlockScan {
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
 
-		typedef uint DataType;
+		typedef float DataType;
 
 		const uint BLOCK_SIZE = 32;
 		//int width = 1024 * 2;
@@ -157,8 +157,8 @@ namespace BlockScan {
 		float tm = 0;
 		//tm = timeGetTime();
 		cudaEventRecord(start, 0);
-		BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
-		BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
+		BlockScan::blockScan<DataType, BLOCK_SIZE, 4 * sizeof(uint) / sizeof(DataType)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+		BlockScan::blockScan<DataType, BLOCK_SIZE, 4 * sizeof(uint) / sizeof(DataType)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
 		cudaDeviceSynchronize();
 		cudaEventRecord(stop, 0);
 		//CUDA_CHECK_ERROR;
@@ -190,6 +190,8 @@ namespace BlockScan {
 
 
 void TestBlockScan(){
+//	BlockScan::Test(1 * 1024, 2 * 1024);
+//	BlockScan::Test(2 * 1024, 1 * 1024);
 	std::cout << "------------------------------------------------------" << std::endl;
 	for(int i = 1; i < 10; i++){
 		BlockScan::Test(i * 1024, i * 1024);

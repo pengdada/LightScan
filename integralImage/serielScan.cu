@@ -138,8 +138,8 @@ namespace SerielScan {
 	float tm = 0;
 	//tm = timeGetTime();
 	cudaEventRecord(start, 0);
-	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint), BLOCK_DIM_X> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
-	SerielScan::serielScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint), BLOCK_DIM_X> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
+	SerielScan::serielScan<DataType, BLOCK_SIZE, 4 * sizeof(uint) / sizeof(DataType), BLOCK_DIM_X> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+	SerielScan::serielScan<DataType, BLOCK_SIZE, 4 * sizeof(uint) / sizeof(DataType), BLOCK_DIM_X> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	//CUDA_CHECK_ERROR;
