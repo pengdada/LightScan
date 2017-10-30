@@ -108,9 +108,7 @@ namespace SerielScan {
 			}
 		}
 	}
-};
-
-void TestSerielScan() {
+	void Test(int width, int height) {
 	std::cout << "begin : TestSerielScan" << std::endl;
 	float inc = 0;
 	cudaEvent_t start, stop;
@@ -121,8 +119,8 @@ void TestSerielScan() {
 
 	const uint BLOCK_SIZE = 32;
 	const uint BLOCK_DIM_X = 256 * 4;
-	int width = 1024 * 2;
-	int height = 1024 * 1;
+	//int width = 1024 * 2;
+	//int height = 1024 * 2;
 	int size = width*height;
 	std::vector<DataType> vecA(size), vecB(size);
 	//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
@@ -159,8 +157,24 @@ void TestSerielScan() {
 		fwrite(&vecB[0], sizeof(vecB[0]), width*height, fp);
 		fclose(fp);
 	}
+	FILE* flog = fopen("d:/log.txt", "at");
+	if(flog){
+		fprintf(flog, "%f ", inc);
+		fclose(flog);
+	}
 	printf("%d, %d, total time = %f, %f\n", width, height, tm, inc);
 	//cudaSyncDevice();
 	std::cout << "end : TestSerielScan" << std::endl;
 }
+};
 
+
+
+void TestSerielScan(){
+	std::cout << "------------------------------------------------------" << std::endl;
+	SerielScan::Test(1024, 1024);
+	for(int i = 1; i < 10; i++){
+		SerielScan::Test(i * 1024, i * 1024);
+	}
+	std::cout << "------------------------------------------------------" << std::endl;;
+}

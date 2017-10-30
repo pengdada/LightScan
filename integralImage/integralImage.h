@@ -75,7 +75,7 @@ inline float getTime() {
 
 template<typename T> inline
 float GetAvgTime(const T* src, T* dst, int width, int height, int type) {
-	const int N = 30;
+	const int N = 5;
 	float tm = getTime();
 	for (int i = 0; i < N; i++) {
 		if (type == 0) IntegralImageSerial(src, dst, width, height);
@@ -85,16 +85,22 @@ float GetAvgTime(const T* src, T* dst, int width, int height, int type) {
 	return tm/ N;
 }
 
-static void Test() {
-	int width = 1024*1;
-	int height = 1024*2;
+static void TestCPU(int width, int height) {
+	//int width = 1024*1;
+	//int height = 1024*2;
 	int size = width*height;
 	std::vector<int> src(size), dst1(size), dst2(size);
 	std::fill(src.begin(), src.end(), 1);
 	{
 		float tm1 = GetAvgTime(&src[0], &dst1[0], width, height, 0);
 		float tm2 = GetAvgTime(&src[0], &dst2[0], width, height, 1);
-		printf(" IntegralImageSerial tm1 = %f \n IntegralImageParallel tm2 = %f\n", tm1, tm2);
+		printf("%d, %d, IntegralImageSerial tm1 = %f \n    IntegralImageParallel tm2 = %f\n", width, height, tm1, tm2);
+
+		FILE* flog = fopen("d:/log.txt", "at");
+		if(flog){
+			fprintf(flog, "%f ", tm1);
+			fclose(flog);
+		}
 	}
 
 	if (memcmp(&dst1[0], &dst2[0], size*sizeof(dst2[0])) == 0) {
@@ -105,7 +111,11 @@ static void Test() {
 	}
 }
 
-
+static void Test() {
+	for(int i = 1; i < 10; i++){
+		TestCPU(i*1024, i*1024);
+	}
+}
 
 
 #endif //__INTEGRAL_IMAGE_H

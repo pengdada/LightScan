@@ -129,56 +129,70 @@ namespace BlockScan {
 		}
 	}
 
+	static void Test(int width, int height) {
+		std::cout << "begin : TestBlockScan" << std::endl;
+		float inc = 0;
+		cudaEvent_t start, stop;
+		cudaEventCreate(&start);
+		cudaEventCreate(&stop);
+
+		typedef uint DataType;
+
+		const uint BLOCK_SIZE = 32;
+		//int width = 1024 * 2;
+		//int height = 1024 * 2;
+		int size = width*height;
+		std::vector<DataType> vecA(size), vecB(size);
+		//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
+
+		std::fill(vecA.begin(), vecA.end(), 1);
+
+		DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
+		devA.CopyFromHost(&vecA[0], width, width, height);
+
+		DevStream SM;
+		dim3 block_size(256 * 4, 1);
+		dim3 grid_size1(1, UpDivide(height, BLOCK_SIZE));
+		dim3 grid_size2(1, UpDivide(width, BLOCK_SIZE));
+		float tm = 0;
+		//tm = timeGetTime();
+		cudaEventRecord(start, 0);
+		BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size1, block_size, 0, SM.stream >> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
+		BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size, 0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
+		cudaDeviceSynchronize();
+		cudaEventRecord(stop, 0);
+		//CUDA_CHECK_ERROR;
+
+
+		//tm = timeGetTime() - tm;
+
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&inc, start, stop);
+
+		devB.CopyToHost(&vecB[0], width, width, height);
+
+		FILE* fp = fopen("d:/int.raw", "wb");
+		if(fp) {
+			fwrite(&vecB[0], sizeof(vecB[0]), width*height, fp);
+			fclose(fp);
+		}
+		FILE* flog = fopen("d:/log.txt", "at");
+		if(flog){
+			fprintf(flog, "%f ", inc);
+			fclose(flog);
+		}
+		printf("%d, %d, total time = %f, %f\n", width, height, tm, inc);
+		//cudaSyncDevice();
+		std::cout << "end : TestBlockScan" << std::endl;
+	}
 };
 
-void TestBlockScan() {
-	std::cout << "begin : TestBlockScan" << std::endl;
-	float inc = 0;
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-
-	typedef uint DataType;
-
-	const uint BLOCK_SIZE = 32;
-	int width = 1024*2;
-	int height = 1024*1;
-	int size = width*height;
-	std::vector<DataType> vecA(size), vecB(size);
-	//for (int i = 0; i < height-16; i += 32) std::fill(vecA.begin()+i*width, vecA.begin() + (i+16)*width, 1);
-	
-	std::fill(vecA.begin(), vecA.end(), 1);
-	
-	DevData<DataType> devA(width, height), devB(width, height), devTmp(height, width);
-	devA.CopyFromHost(&vecA[0], width, width, height);
-
-	DevStream SM;
-	dim3 block_size(256*4, 1);
-	dim3 grid_size1(1, UpDivide(height, BLOCK_SIZE));
-	dim3 grid_size2(1, UpDivide(width, BLOCK_SIZE));
-	float tm = 0;
-	//tm = timeGetTime();
-	cudaEventRecord(start, 0);
-	BlockScan::blockScan<uint, BLOCK_SIZE, 8*sizeof(DataType)/sizeof(uint)> << <grid_size1, block_size, 0, SM.stream>> > (devA.GetData(), devTmp.GetData(), width, width, height, height);
-	BlockScan::blockScan<uint, BLOCK_SIZE, 8 * sizeof(DataType) / sizeof(uint)> << <grid_size2, block_size,0, SM.stream >> > (devTmp.GetData(), devB.GetData(), height, height, width, width);
-	cudaDeviceSynchronize();
-	cudaEventRecord(stop, 0);	
-	//CUDA_CHECK_ERROR;
 
 
-	//tm = timeGetTime() - tm;
-
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&inc, start, stop);
-
-	devB.CopyToHost(&vecB[0], width, width, height);
-
-	FILE* fp = fopen("d:/int.raw", "wb");
-	if (fp) {
-		fwrite(&vecB[0], sizeof(vecB[0]), width*height, fp);
-		fclose(fp);
+void TestBlockScan(){
+	std::cout << "------------------------------------------------------" << std::endl;
+	for(int i = 1; i < 10; i++){
+		BlockScan::Test(i * 1024, i * 1024);
 	}
-	printf("%d, %d, total time = %f, %f\n", width, height, tm, inc);
-	//cudaSyncDevice();
-	std::cout << "end : TestBlockScan" << std::endl;
+	std::cout << "------------------------------------------------------" << std::endl;;
 }
