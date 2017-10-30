@@ -172,7 +172,7 @@ namespace SerielScan {
 
 void TestSerielScan(){
 	std::cout << "------------------------------------------------------" << std::endl;
-	SerielScan::Test(1024, 1024);
+	//SerielScan::Test(1024, 1024);
 	for(int i = 1; i < 10; i++){
 		SerielScan::Test(i * 1024, i * 1024);
 	}

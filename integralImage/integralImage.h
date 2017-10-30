@@ -3,6 +3,10 @@
 
 #include <vector>
 #include <memory>
+#include "cudaLib.cuh"
+#include <iostream>
+#include <chrono>
+
 #ifdef _WIN32
 #include <Windows.h>
 #include <mmsystem.h>
@@ -67,6 +71,36 @@ void IntegralImageParallel(const T* src, T* dst, int width, int height) {
 	}
 }
 
+struct Timer {
+	float elapsed;
+	cudaEvent_t m_start_event;
+	cudaEvent_t m_stop_event;
+	Timer(){
+		elapsed = 0.f;
+		cudaEventCreate(&m_start_event);
+		cudaEventCreate(&m_stop_event);
+	}
+	~Timer()
+	{
+		cudaEventDestroy(m_start_event);
+		cudaEventDestroy(m_stop_event);
+	}
+	void start()
+	{
+		cudaEventRecord(m_start_event, 0);
+	}
+	void stop()
+	{
+		cudaEventRecord(m_stop_event, 0);
+		cudaEventSynchronize(m_stop_event);
+		cudaEventElapsedTime(&elapsed, m_start_event, m_stop_event);
+	}
+	float elapsedInMs() const
+	{
+		return elapsed;
+	}
+};
+
 inline float getTime() {
 #ifdef _WIN32
 	return timeGetTime();
@@ -75,14 +109,16 @@ inline float getTime() {
 
 template<typename T> inline
 float GetAvgTime(const T* src, T* dst, int width, int height, int type) {
-	const int N = 5;
-	float tm = getTime();
+	const int N = 6;
+	auto start = std::chrono::system_clock::now();
 	for (int i = 0; i < N; i++) {
 		if (type == 0) IntegralImageSerial(src, dst, width, height);
 		if (type == 1) IntegralImageParallel(src, dst, width, height);
 	}
-	tm = getTime() - tm;
-	return tm/ N;
+	auto end = std::chrono::system_clock::now();
+	auto diff = end - start;
+	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(diff).count() / 1000000.f;
+	return duration / N;
 }
 
 static void TestCPU(int width, int height) {
